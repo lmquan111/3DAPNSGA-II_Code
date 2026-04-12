@@ -5,27 +5,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
-    public static void main(String[] args) {
-        
-        List<Depot> depots = new ArrayList<>();
-        List<StaticCustomer> staticCustomers = new ArrayList<>();
-        List<DynamicCustomer> dynamicCustomers = new ArrayList<>();
 
-        
+    static List<Depot> depots = new ArrayList<>();
+    static List<StaticCustomer> staticCustomers = new ArrayList<>();
+    static List<DynamicCustomer> dynamicCustomers = new ArrayList<>();
+
+    static void readData() {
+
         String csvFile = "16 Instance16.csv";
         String line = "";
         String cvsSplitBy = ",";
 
-        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))){
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
             
-            
-            br.readLine(); 
+            br.readLine(); // Bỏ qua dòng tiêu đề
 
-            
-            while ((line = br.readLine()) != null){
+            while ((line = br.readLine()) != null) {
                 String[] data = line.split(cvsSplitBy);
 
-                
                 int id = Integer.parseInt(data[0]);
                 double x = Double.parseDouble(data[1]);
                 double y = Double.parseDouble(data[2]);
@@ -39,7 +36,6 @@ public class Main {
                 int dcs = Integer.parseInt(data[10]);
                 int pcs = Integer.parseInt(data[11]);
 
-                
                 if (dcs >= 1000 || pcs >= 1000) {
                     if (dcs >= 1000) {
                         depots.add(new Depot(id, x, y, DepotType.DELIVERY, twLeftD, twRightD));
@@ -48,8 +44,7 @@ public class Main {
                         depots.add(new Depot(id, x, y, DepotType.PICKUP, twLeftP, twRightP));
                     }
                 } 
-                
-                else{
+                else {
                     CustomerType type;
                     double demand;
                     double startTimeWindow;
@@ -57,65 +52,82 @@ public class Main {
 
                     int tmpCluster = -1;
                     
-                    if (deliveryDemand > 0){
+                    if (deliveryDemand > 0) {
                         type = CustomerType.DELIVERY;
                         demand = deliveryDemand;
                         startTimeWindow = twLeftD;
                         endTimeWindow = twRightD;
 
-                        if(dcs == 1){
+                        if (dcs == 1) {
+                            tmpCluster = 2;
+                        } else if (dcs == 2) {
                             tmpCluster = 0;
-                        }
-                        else if(dcs == 2){
-                            tmpCluster = 1;
                         }
 
                     } 
-                    else{
+                    else {
                         type = CustomerType.PICKUP;
                         demand = pickupDemand;
                         startTimeWindow = twLeftP;
                         endTimeWindow = twRightP;
 
-                        if(pcs == 1){
-                            tmpCluster = 2;
-                        }
-                        else if(pcs == 2){
+                        if (pcs == 1) {
+                            tmpCluster = 1;
+                        } else if (pcs == 2) {
                             tmpCluster = 3;
                         }
-  
                     }
 
-                    
-                    if (knownTime == 0){
-                        // staticCustomers.add(new StaticCustomer(id, x, y, demand, type, startTimeWindow, endTimeWindow, -1));
+                    if (knownTime == 0) {
                         staticCustomers.add(new StaticCustomer(id, x, y, demand, type, startTimeWindow, endTimeWindow, tmpCluster));
                     } 
-                    else{
+                    else {
                         dynamicCustomers.add(new DynamicCustomer(id, x, y, demand, type, startTimeWindow, endTimeWindow, knownTime));
                     }
                 }
             }
 
-        } 
-        catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
+        // System.out.println("=== DANH SÁCH KHO (" + depots.size() + ") ===");
+        // for (Depot d : depots) {
+        //     System.out.println(d.toString());
+        // }
 
-        System.out.println("=== DANH SÁCH KHO (" + depots.size() + ") ===");
+        // System.out.println("\n=== DANH SÁCH KHÁCH TĨNH (" + staticCustomers.size() + ") ===");
+        // for (int i = 0; i < staticCustomers.size(); i++) {
+        //     System.out.println(staticCustomers.get(i).toString());
+        // }
+
+        // System.out.println("\n=== DANH SÁCH KHÁCH ĐỘNG (" + dynamicCustomers.size() + ") ===");
+        // for (DynamicCustomer dc : dynamicCustomers) {
+        //     System.out.println(dc.toString());
+        // }
+    }
+
+    public static void main(String[] args) {
+        readData();
+
+        // ANSGA-II
+        int Run = 1000; // số lần lặp NSGA-II
+        int numTimeSlot = 10;
+
+        // tìm thời gian kết thúc của việc vận chuyển
+        double timeHorizon = 0;
         for (Depot d : depots) {
-            System.out.println(d.toString());
+            if (d.getEndTimeWindow() > timeHorizon) {
+                timeHorizon = d.getEndTimeWindow();
+            }
         }
 
-        System.out.println("\n=== DANH SÁCH KHÁCH TINH (" + staticCustomers.size() + ") ===");
-        for (int i = 0; i < staticCustomers.size(); i++) {
-            System.out.println(staticCustomers.get(i).toString());
-        }
+        ANSGA algorithm = new ANSGA(Run, numTimeSlot, timeHorizon, staticCustomers, dynamicCustomers, depots);
+        List<Individual> Perato = algorithm.runAlgorithm();
 
-        System.out.println("\n=== DANH SÁCH KHÁCH ĐONG (" + dynamicCustomers.size() + ") ===");
-        for (DynamicCustomer dc : dynamicCustomers) {
-            System.out.println(dc.toString());
+        for(Individual x : Perato){
+            System.out.println(x.toString());
         }
+    
     }
 }

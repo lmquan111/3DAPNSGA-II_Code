@@ -1,0 +1,39 @@
+initializePopulation()
+cnt = 0
+gbest (vector 1D) = rỗng // pareto front
+SgBest ( vector 2D ) = rỗng // lưu các pareto front qua các thế hệ thật ra chỉ cần lưu Rlg thằng, thể thay thế list -> queue và cân bằng nó ở số lượng Rlg cho đỡ tốn bộ nhớ
+Tìm d dựa vào knownTime của List dynamicCustomers
+for i from 1 -> Run{
+    selection, crossover and mutation -> R từ P
+    Q = R hợp P
+    for pop in Q{
+        copyPop = pop.clone()
+        for time in timeSlot{
+            List Ds = d[time]
+            insertionStrategy(copyPop, Ds) // thêm các thằng trong Ds vào copyPop và thay đổi cấu trúc copyPop, có 3TH xảy ra khi chèn là muốn chèn vào xe v 1. xe v xong rồi phải điều xe mới, 2. xe v đáp ứng được thì chèn vào chỗ tốt nhất, 3. xe v quá trọng tải phải điều xe mới
+        }
+        NV, TOC = evaluate(copyPop) // tính số xe dùng và TOC
+        pop.NV = NV, pop.TOC = TOC
+    }
+    thực hiện sắp xếp không trội dựa trên NV, TOC trên -> P mới
+    if(cnt == 0) gbest = rank1 trong P mới; 
+    else{
+        SgBest[cnt++] = arg_max(rank1 của P mới, gbest) // tính theo HV 
+        int hv = SgBest[Sgbest.length -1].HV() // so sánh với nhau bằng độ đo HV
+        check = false
+        for x from 1 to Rlg{
+            if(|hv - SgBest[Sgbest.length - x].HV()| > 0.01){
+                check = true
+            }
+        }
+
+        if(check == false)
+            ngbest = thực hiện LNS() với số lượng destroy = 5, cho gbest hiện tại 
+
+        nếu ngbest có HV < gbest hiện tại 
+            gbest = ngbest
+        rank1 trong P mới <- ngbest
+    }
+}
+	
+      
