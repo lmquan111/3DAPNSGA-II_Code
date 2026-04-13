@@ -16,7 +16,7 @@ public class StaticCustomer {
     private double endTimeWindow;   
     
     
-    private int clusterId;          
+    private int clusterId;  // tâm kho của nó        
 
     // Constructor
     public StaticCustomer(int id, double x, double y, double demand, CustomerType type, 

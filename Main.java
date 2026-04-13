@@ -67,10 +67,10 @@ public class Main {
                         //     tmpCluster = 0;
                         // }
 
-                        Random rand = new Random();
-                        int ra = rand.nextInt(2);
-                        if(ra == 0) tmpCluster = 0;
-                        else if(ra == 1) tmpCluster = 1;
+                        // Random rand = new Random();
+                        // int ra = rand.nextInt(2);
+                        // if(ra == 0) tmpCluster = 0;
+                        // else if(ra == 1) tmpCluster = 1;
                     } 
                     else {
                         type = CustomerType.PICKUP;
@@ -85,10 +85,10 @@ public class Main {
                         //     tmpCluster = 3;
                         // }
 
-                        Random rand = new Random();
-                        int ra = rand.nextInt(2);
-                        if(ra == 0) tmpCluster = 2;
-                        else if(ra == 1) tmpCluster = 3;
+                        // Random rand = new Random();
+                        // int ra = rand.nextInt(2);
+                        // if(ra == 0) tmpCluster = 2;
+                        // else if(ra == 1) tmpCluster = 3;
                     }
 
                     if (knownTime == 0) {
@@ -134,6 +134,25 @@ public class Main {
                 timeHorizon = d.getEndTimeWindow();
             }
         }
+
+        //---------3DAP------------------
+
+            /*
+               dùng List staticCustomers, List depots
+            */
+
+            // depots = {DD1, PD1, PD2, DD2, DD3, PD3}
+
+            // DD1 : 0, PD1 : 1, ..., PD3 : 5
+
+            // System.out.println("\n=== DANH SÁCH KHÁCH TĨNH (" + staticCustomers.size() + ") ===");
+            // for (int i = 0; i < staticCustomers.size(); i++) {
+            //     System.out.println(staticCustomers.get(i).toString());
+            // }
+
+
+        //--------------------------------
+
 
         ANSGA algorithm = new ANSGA(Run, numTimeSlot, timeHorizon, staticCustomers, dynamicCustomers, depots);
         List<Individual> Perato = algorithm.runAlgorithm();
