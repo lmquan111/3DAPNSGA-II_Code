@@ -116,50 +116,57 @@ public class ANSGA {
                 gbest = new ArrayList<>(rank1);
             } 
             else {
-                double hvRank1 = calculateHV(rank1);
-                double hvGbest = calculateHV(gbest);
-                
-                if (hvRank1 > hvGbest) {
-                    gbest = new ArrayList<>(rank1);
-                }
+
+                List<Individual> combinedForGbest = new ArrayList<>();
+                combinedForGbest.addAll(gbest); 
+                combinedForGbest.addAll(rank1);
+
+                gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
                 
                 SgBest.add(new ArrayList<>(gbest));
-
-                if (SgBest.size() > Rlg) {
+                if (SgBest.size() > 15) { 
                     SgBest.poll(); 
                 }
                 
-                double currentHv = calculateHV(SgBest.getLast());
-                boolean check = false;
                 
-                if (SgBest.size() == Rlg) {
-                    for (int x = 1; x < Rlg; x++) {
+                double currentHv = calculateHV(SgBest.getLast());
+                boolean hasImprovement = false; 
+                
+                if (SgBest.size() == 15) {
+                    for (int x = 1; x < 15; x++) {
                         double pastHv = calculateHV(SgBest.get(SgBest.size() - 1 - x));
                         if (Math.abs(currentHv - pastHv) > 0.01) {
-                            check = true;
+                            hasImprovement = true; 
                             break;
                         }
                     }
                 } 
                 else {
-                    check = true;
+                    hasImprovement = true; 
                 }
 
-                if (!check) { 
-                    List<Individual> ngbest = applyLNS(gbest, Constants.Rc);
+                if (!hasImprovement) { 
+                    List<Individual> ngbest = applyLNS(gbest, Constants.Rc, dynamicCustomers);
                     
-                    double hvNgbest = calculateHV(ngbest);
-
-                    if (hvNgbest > calculateHV(gbest)) { 
-                        gbest = new ArrayList<>(ngbest);
-                    }
+                    combinedForGbest.clear();
+                    combinedForGbest.addAll(gbest);
+                    combinedForGbest.addAll(ngbest);
+                    gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
                     
-                    replaceRank1(this.population, ngbest);
+                    replaceRank1(this.population, gbest);
                 }
             }
             
             cnt++;
             // System.out.println("Hoàn thành Generation: " + gen + " | Current gbest HV: " + calculateHV(gbest));
+
+            // System.out.println("Gbest thế hệ " + gen);
+            // for(Individual x : gbest){
+            //     System.out.println(x.toString());
+            // }
+
+            System.out.println("Đã xử lý: " + gen + "%");
+
         }
         return gbest;
     }
@@ -252,7 +259,7 @@ public class ANSGA {
     LNS
     */
 
-    private List<Individual> applyLNS(List<Individual> gbest, int destroyCount) {
+    private List<Individual> applyLNS(List<Individual> gbest, int destroyCount, List<DynamicCustomer> dynamics) {
         List<Individual> improvedGbest = new ArrayList<>();
         Random rand = new Random();
 
@@ -260,8 +267,8 @@ public class ANSGA {
             Individual newInd = pop.clone(); 
             List<Integer> chromosome = newInd.getChromosome();
 
+            // 1. RANDOM DESTROY
             List<Integer> removedCustomers = new ArrayList<>();
-
             int numToDestroy = Math.min(destroyCount, chromosome.size());
 
             for (int i = 0; i < numToDestroy; i++) {
@@ -269,38 +276,46 @@ public class ANSGA {
                 removedCustomers.add(chromosome.remove(removeIndex));
             }
 
+            // 2. GREEDY REPAIR 
             for (int customerId : removedCustomers) {
                 double bestCost = Double.MAX_VALUE;
                 int bestInsertPos = -1;
                 
-                Individual tempInd = new Individual();
-
                 for (int pos = 0; pos <= chromosome.size(); pos++) {
                     chromosome.add(pos, customerId);
                     
-                    tempInd.setChromosome(chromosome);
-                    evaluate(tempInd); 
+                    Individual tempInd = new Individual();
+                    tempInd.setChromosome(new ArrayList<>(chromosome));
+
+                    Individual copyForEval = tempInd.clone();
+                    insertionStrategy(copyForEval, dynamics); 
+                    evaluate(copyForEval); 
                     
-                    double currentCost = tempInd.getNV() * 100000.0 + tempInd.getTOC();
+                    double currentCost = copyForEval.getNV() * 100000.0 + copyForEval.getTOC();
 
                     if (currentCost < bestCost) {
                         bestCost = currentCost;
                         bestInsertPos = pos;
                     }
 
-                    chromosome.remove(pos);
+                    chromosome.remove(pos); 
                 }
 
                 if (bestInsertPos != -1) {
                     chromosome.add(bestInsertPos, customerId);
                 } 
                 else {
-                    chromosome.add(customerId);
+                    chromosome.add(customerId); 
                 }
             }
-
+            
             newInd.setChromosome(chromosome);
-            evaluate(newInd); 
+
+            Individual finalEval = newInd.clone();
+            insertionStrategy(finalEval, dynamics);
+            evaluate(finalEval);
+            newInd.setNV(finalEval.getNV());
+            newInd.setTOC(finalEval.getTOC());
             
             improvedGbest.add(newInd);
         }

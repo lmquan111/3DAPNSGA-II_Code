@@ -3,6 +3,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Main {
 
@@ -13,6 +14,7 @@ public class Main {
     static void readData() {
 
         String csvFile = "16 Instance16.csv";
+        // String csvFile = "17 Instance17.csv";
         String line = "";
         String cvsSplitBy = ",";
 
@@ -58,12 +60,17 @@ public class Main {
                         startTimeWindow = twLeftD;
                         endTimeWindow = twRightD;
 
-                        if (dcs == 1) {
-                            tmpCluster = 2;
-                        } else if (dcs == 2) {
-                            tmpCluster = 0;
-                        }
+                        // if (dcs == 1) {
+                        //     tmpCluster = 2;
+                        // } 
+                        // else if (dcs == 2) {
+                        //     tmpCluster = 0;
+                        // }
 
+                        Random rand = new Random();
+                        int ra = rand.nextInt(2);
+                        if(ra == 0) tmpCluster = 0;
+                        else if(ra == 1) tmpCluster = 1;
                     } 
                     else {
                         type = CustomerType.PICKUP;
@@ -71,11 +78,17 @@ public class Main {
                         startTimeWindow = twLeftP;
                         endTimeWindow = twRightP;
 
-                        if (pcs == 1) {
-                            tmpCluster = 1;
-                        } else if (pcs == 2) {
-                            tmpCluster = 3;
-                        }
+                        // if (pcs == 1) {
+                        //     tmpCluster = 1;
+                        // } 
+                        // else if (pcs == 2) {
+                        //     tmpCluster = 3;
+                        // }
+
+                        Random rand = new Random();
+                        int ra = rand.nextInt(2);
+                        if(ra == 0) tmpCluster = 2;
+                        else if(ra == 1) tmpCluster = 3;
                     }
 
                     if (knownTime == 0) {
@@ -111,7 +124,7 @@ public class Main {
         readData();
 
         // ANSGA-II
-        int Run = 1000; // số lần lặp NSGA-II
+        int Run = 10000; // số lần lặp NSGA-II
         int numTimeSlot = 10;
 
         // tìm thời gian kết thúc của việc vận chuyển
