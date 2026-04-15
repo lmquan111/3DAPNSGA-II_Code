@@ -1,9 +1,11 @@
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.LinkedList;
 
 public class ANSGA {
@@ -102,6 +104,9 @@ public class ANSGA {
                     }
                 }
                 
+                // if(gen == 100) evaluate(copyPop, false);
+                // else evaluate(copyPop);
+
                 evaluate(copyPop);
                 
                 pop.setNV(copyPop.getNV());
@@ -121,10 +126,11 @@ public class ANSGA {
                 combinedForGbest.addAll(gbest); 
                 combinedForGbest.addAll(rank1);
 
-                gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
+                // gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
+                gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, Constants.N_ind)));
                 
                 SgBest.add(new ArrayList<>(gbest));
-                if (SgBest.size() > 15) { 
+                if (SgBest.size() > Rlg) { 
                     SgBest.poll(); 
                 }
                 
@@ -132,8 +138,8 @@ public class ANSGA {
                 double currentHv = calculateHV(SgBest.getLast());
                 boolean hasImprovement = false; 
                 
-                if (SgBest.size() == 15) {
-                    for (int x = 1; x < 15; x++) {
+                if (SgBest.size() == Rlg) {
+                    for (int x = 1; x < Rlg; x++) {
                         double pastHv = calculateHV(SgBest.get(SgBest.size() - 1 - x));
                         if (Math.abs(currentHv - pastHv) > 0.01) {
                             hasImprovement = true; 
@@ -151,7 +157,8 @@ public class ANSGA {
                     combinedForGbest.clear();
                     combinedForGbest.addAll(gbest);
                     combinedForGbest.addAll(ngbest);
-                    gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
+                    // gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, combinedForGbest.size())));
+                    gbest = new ArrayList<>(getRank1(nonDominatedSort(combinedForGbest, Constants.N_ind)));
                     
                     replaceRank1(this.population, gbest);
                 }
@@ -165,9 +172,14 @@ public class ANSGA {
             //     System.out.println(x.toString());
             // }
 
-            System.out.println("Đã xử lý: " + gen + "%");
+            System.out.println("Đã xử lý: " + gen + "test");
+
+            
 
         }
+        
+        // evaluate(gbest.get(0), false);
+
         return gbest;
     }
 
@@ -428,7 +440,7 @@ public class ANSGA {
             return;
         }
 
-        front.sort((i1, i2) -> Integer.compare(i1.getNV(), i2.getNV()));
+        front.sort((i1, i2) -> Double.compare(i1.getNV(), i2.getNV()));
         front.get(0).setCrowdingDistance(Double.POSITIVE_INFINITY);
         front.get(size - 1).setCrowdingDistance(Double.POSITIVE_INFINITY);
         
@@ -472,7 +484,9 @@ public class ANSGA {
     /*
         insertion strategy
     */
-   private double calculateRouteCost(Route route) {
+   private double calculateRouteCost(Route route){return calculateRouteCost(route, true);}
+
+   private double calculateRouteCost(Route route, boolean p) {
         double TC = 0, PC = 0, FC = 0, IC = 0;
         
         double currentTime = route.startDepot.getStartTimeWindow();
@@ -492,11 +506,11 @@ public class ANSGA {
             double dist = calculateDistance(currentX, currentY, cx, cy);
             TC += dist * Constants.fv * Constants.pv;
             
-            double arrivalTime = currentTime + (dist / Constants.alpha_v);
+            double arrivalTime = currentTime + (dist / Constants.alpha_v) * 60;
 
             double early = Math.max(twLeft - arrivalTime, 0); 
             double late = Math.max(arrivalTime - twRight, 0); 
-            PC += (Constants.epsilon * early) + (Constants.omega * late);
+            PC += (Constants.epsilon * early)/60 + (Constants.omega * late)/60;
 
             currentTime = Math.max(arrivalTime, twLeft);
 
@@ -518,10 +532,19 @@ public class ANSGA {
         double distToDepot = calculateDistance(currentX, currentY, route.endDepot.getX(), route.endDepot.getY());
         TC += distToDepot * Constants.fv * Constants.pv;
 
+        if(!p){
+            System.out.println("TC: " + TC + ", PC: " + PC + ", FC: " + FC + ", IC: " + IC);
+        }
+
         return TC + PC + FC + IC;
     }
 
+    
     private void evaluate(Individual ind) {
+        evaluate(ind, true);
+    }
+
+    private void evaluate(Individual ind, boolean p) {
         List<Route> routes = splitChromosome(ind.getChromosome());
         
         ind.setNV(routes.size());
@@ -532,7 +555,7 @@ public class ANSGA {
         totalTOC += MC;
 
         for (Route route : routes) {
-            totalTOC += calculateRouteCost(route);
+            totalTOC += calculateRouteCost(route, p);
         }
 
         ind.setTOC(totalTOC);
@@ -542,22 +565,44 @@ public class ANSGA {
         List<Route> routes = new ArrayList<>();
         Route currentRoute = new Route();
 
+        double currentTime = 0;
+        double currentX = 0;
+        double currentY = 0;
+
+
         for (int i = 0; i < chromosome.size(); i++) {
             int encodedId = chromosome.get(i);
             double demand = getDemand(encodedId);
             CustomerType type = getType(encodedId);
 
+            if (currentRoute.encodedCustomers.isEmpty()) {
+                Depot tempStartDepot = findNearestDepot(encodedId, (type == CustomerType.DELIVERY) ? DepotType.DELIVERY : DepotType.PICKUP);
+                currentTime = tempStartDepot.getStartTimeWindow();
+                currentX = tempStartDepot.getX();
+                currentY = tempStartDepot.getY();
+            }
+
+            Object c = getCustomerObject(encodedId);
+            double cx = (c instanceof StaticCustomer) ? ((StaticCustomer) c).getX() : ((DynamicCustomer) c).getX();
+            double cy = (c instanceof StaticCustomer) ? ((StaticCustomer) c).getY() : ((DynamicCustomer) c).getY();
+            
+            double twLeft = getStartTimeWindow(encodedId);
+            double twRight = getEndTimeWindow(encodedId);
+
+            double dist = calculateDistance(currentX, currentY, cx, cy);
+            double arrivalTime = currentTime + (dist / Constants.alpha_v) * 60;
+
+            double early = Math.max(twLeft - arrivalTime, 0);
+            double late = Math.max(arrivalTime - twRight, 0);
+
             boolean needSplit = false;
 
-            if(currentRoute.deliveryLoad + currentRoute.pickupLoad + demand > Constants.d_v) needSplit = true;
-            // if (type == CustomerType.DELIVERY && (currentRoute.deliveryLoad + demand > Constants.d_v)) {
-            //     needSplit = true;
-            // } 
-            // else if (type == CustomerType.PICKUP && (currentRoute.pickupLoad + demand > Constants.d_v)) {
-            //     needSplit = true;
-            // }
+            // Điều kiện A: Vượt quá tải trọng
+            if (currentRoute.deliveryLoad + currentRoute.pickupLoad + demand > Constants.d_v) {
+                needSplit = true;
+            }
 
-            
+            // Điều kiện B: Mismatch quy trình (Bốc hàng xong lại đi Giao hàng)
             if (!currentRoute.encodedCustomers.isEmpty()) {
                 CustomerType firstTypeInRoute = getType(currentRoute.encodedCustomers.get(0));
                 if (firstTypeInRoute == CustomerType.PICKUP && type == CustomerType.DELIVERY) {
@@ -565,15 +610,26 @@ public class ANSGA {
                 }
             }
 
+
+            // --- XỬ LÝ NGẮT CHUYẾN (NẾU CẦN) ---
             if (needSplit) {
                 if (!currentRoute.encodedCustomers.isEmpty()) {
                     assignDepotsToRoute(currentRoute);
                     routes.add(currentRoute);
                 }
+                
                 currentRoute = new Route();
+
+                Depot tempStartDepot = findNearestDepot(encodedId, (type == CustomerType.DELIVERY) ? DepotType.DELIVERY : DepotType.PICKUP);
+                currentTime = tempStartDepot.getStartTimeWindow();
+                currentX = tempStartDepot.getX();
+                currentY = tempStartDepot.getY();
+
+                dist = calculateDistance(currentX, currentY, cx, cy);
+                arrivalTime = currentTime + (dist / Constants.alpha_v) * 60;
             }
 
-            
+            // --- THÊM KHÁCH HÀNG VÀO CHUYẾN XE HIỆN TẠI ---
             currentRoute.encodedCustomers.add(encodedId);
             if (type == CustomerType.DELIVERY) {
                 currentRoute.deliveryLoad += demand;
@@ -581,6 +637,10 @@ public class ANSGA {
             else {
                 currentRoute.pickupLoad += demand;
             }
+
+            currentTime = Math.max(arrivalTime, twLeft);
+            currentX = cx;
+            currentY = cy;
         }
 
         if (!currentRoute.encodedCustomers.isEmpty()) {

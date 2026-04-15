@@ -10,7 +10,7 @@ public class Constants {
     // tải trọng tối đa
     public static final double d_v = 100;
     // tốc độ của xe
-    public static final double alpha_v = 40;
+    public static final double alpha_v = 30;
     // tỉ lệ tiêu thụ xăng
     public static final double fv = 0.07;
     // giá xăng / lít
