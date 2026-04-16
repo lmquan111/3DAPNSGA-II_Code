@@ -53,6 +53,19 @@ public class Individual implements Comparable<Individual> {
         return Double.compare(other.crowdingDistance, this.crowdingDistance); 
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Individual that = (Individual) o;
+        return chromosome != null ? chromosome.equals(that.chromosome) : that.chromosome == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return chromosome != null ? chromosome.hashCode() : 0;
+    }
+    
     public String toString() {
         return "Individual{" +
                 "TOC=" + TOC +

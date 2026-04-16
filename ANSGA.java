@@ -172,7 +172,7 @@ public class ANSGA {
             //     System.out.println(x.toString());
             // }
 
-            System.out.println("Đã xử lý: " + gen + "test");
+            System.out.println("Đã xử lý: " + gen + " lần lặp");
 
             
 
@@ -279,7 +279,7 @@ public class ANSGA {
             Individual newInd = pop.clone(); 
             List<Integer> chromosome = newInd.getChromosome();
 
-            // 1. RANDOM DESTROY
+            // random destroy
             List<Integer> removedCustomers = new ArrayList<>();
             int numToDestroy = Math.min(destroyCount, chromosome.size());
 
@@ -288,7 +288,7 @@ public class ANSGA {
                 removedCustomers.add(chromosome.remove(removeIndex));
             }
 
-            // 2. GREEDY REPAIR 
+            // greedy repair 
             for (int customerId : removedCustomers) {
                 double bestCost = Double.MAX_VALUE;
                 int bestInsertPos = -1;
@@ -562,145 +562,114 @@ public class ANSGA {
     }
 
     private List<Route> splitChromosome(List<Integer> chromosome) {
-        List<Route> routes = new ArrayList<>();
-        Route currentRoute = new Route();
+        int n = chromosome.size();
+        
+        double[] V = new double[n + 1]; 
+        int[] P = new int[n + 1];       
+        Route[] bestRoutes = new Route[n + 1];
 
-        double currentTime = 0;
-        double currentX = 0;
-        double currentY = 0;
+        for (int i = 1; i <= n; i++) V[i] = Double.MAX_VALUE;
+        V[0] = 0.0;
 
-
-        for (int i = 0; i < chromosome.size(); i++) {
-            int encodedId = chromosome.get(i);
-            double demand = getDemand(encodedId);
-            CustomerType type = getType(encodedId);
-
-            if (currentRoute.encodedCustomers.isEmpty()) {
-                Depot tempStartDepot = findNearestDepot(encodedId, (type == CustomerType.DELIVERY) ? DepotType.DELIVERY : DepotType.PICKUP);
-                currentTime = tempStartDepot.getStartTimeWindow();
-                currentX = tempStartDepot.getX();
-                currentY = tempStartDepot.getY();
-            }
-
-            Object c = getCustomerObject(encodedId);
-            double cx = (c instanceof StaticCustomer) ? ((StaticCustomer) c).getX() : ((DynamicCustomer) c).getX();
-            double cy = (c instanceof StaticCustomer) ? ((StaticCustomer) c).getY() : ((DynamicCustomer) c).getY();
+        for (int i = 1; i <= n; i++) {
+            double currentDeliveryLoad = 0;
+            double currentPickupLoad = 0;
+            // Đã xóa internalDist và prevNodeId vì hàm calculateRouteCost sẽ tự lo việc tính khoảng cách
             
-            double twLeft = getStartTimeWindow(encodedId);
-            double twRight = getEndTimeWindow(encodedId);
+            int firstNodeId = chromosome.get(i - 1);
+            boolean hasDelivery = false;
+            boolean hasPickup = false;
 
-            double dist = calculateDistance(currentX, currentY, cx, cy);
-            double arrivalTime = currentTime + (dist / Constants.alpha_v) * 60;
-
-            double early = Math.max(twLeft - arrivalTime, 0);
-            double late = Math.max(arrivalTime - twRight, 0);
-
-            boolean needSplit = false;
-
-            // Điều kiện A: Vượt quá tải trọng
-            if (currentRoute.deliveryLoad + currentRoute.pickupLoad + demand > Constants.d_v) {
-                needSplit = true;
-            }
-
-            // Điều kiện B: Mismatch quy trình (Bốc hàng xong lại đi Giao hàng)
-            if (!currentRoute.encodedCustomers.isEmpty()) {
-                CustomerType firstTypeInRoute = getType(currentRoute.encodedCustomers.get(0));
-                if (firstTypeInRoute == CustomerType.PICKUP && type == CustomerType.DELIVERY) {
-                    needSplit = true;
-                }
-            }
-
-
-            // --- XỬ LÝ NGẮT CHUYẾN (NẾU CẦN) ---
-            if (needSplit) {
-                if (!currentRoute.encodedCustomers.isEmpty()) {
-                    assignDepotsToRoute(currentRoute);
-                    routes.add(currentRoute);
-                }
+            for (int j = i; j <= n; j++) {
+                int currentNodeId = chromosome.get(j - 1);
                 
-                currentRoute = new Route();
+                if (getType(currentNodeId) == CustomerType.DELIVERY) {
+                    hasDelivery = true;
+                    currentDeliveryLoad += getDemand(currentNodeId);
+                } 
+                else {
+                    hasPickup = true;
+                    currentPickupLoad += getDemand(currentNodeId);
+                }
 
-                Depot tempStartDepot = findNearestDepot(encodedId, (type == CustomerType.DELIVERY) ? DepotType.DELIVERY : DepotType.PICKUP);
-                currentTime = tempStartDepot.getStartTimeWindow();
-                currentX = tempStartDepot.getX();
-                currentY = tempStartDepot.getY();
+                if (currentDeliveryLoad + currentPickupLoad > Constants.d_v) break;
 
-                dist = calculateDistance(currentX, currentY, cx, cy);
-                arrivalTime = currentTime + (dist / Constants.alpha_v) * 60;
+                Depot startDepot = null;
+                Depot endDepot = null;
+
+                if (hasDelivery && hasPickup) {
+                    // Lộ trình mở 
+                    startDepot = findNearestDepot(firstNodeId, DepotType.DELIVERY);
+                    endDepot = findNearestDepot(currentNodeId, DepotType.PICKUP);
+                } 
+                else if (hasDelivery) {
+                    // lộ trình đóng chỉ giao 
+                    startDepot = findNearestDepot(firstNodeId, DepotType.DELIVERY);
+                    endDepot = startDepot;
+                } 
+                else {
+                    // lộ trình đóng chỉ nhận 
+                    startDepot = findNearestDepot(currentNodeId, DepotType.PICKUP);
+                    endDepot = startDepot;
+                }
+
+                if (startDepot == null || endDepot == null) break;
+
+                Route evalRoute = new Route();
+                evalRoute.encodedCustomers = new ArrayList<>(chromosome.subList(i - 1, j));
+                evalRoute.startDepot = startDepot;
+                evalRoute.endDepot = endDepot;
+                evalRoute.deliveryLoad = currentDeliveryLoad;
+                evalRoute.pickupLoad = currentPickupLoad;
+
+                double currentRouteCost = calculateRouteCost(evalRoute, true);
+
+                if (V[i - 1] + currentRouteCost < V[j]) {
+                    V[j] = V[i - 1] + currentRouteCost;
+                    P[j] = i - 1;
+                    
+                    bestRoutes[j] = evalRoute;
+                }
             }
-
-            // --- THÊM KHÁCH HÀNG VÀO CHUYẾN XE HIỆN TẠI ---
-            currentRoute.encodedCustomers.add(encodedId);
-            if (type == CustomerType.DELIVERY) {
-                currentRoute.deliveryLoad += demand;
-            } 
-            else {
-                currentRoute.pickupLoad += demand;
-            }
-
-            currentTime = Math.max(arrivalTime, twLeft);
-            currentX = cx;
-            currentY = cy;
         }
 
-        if (!currentRoute.encodedCustomers.isEmpty()) {
-            assignDepotsToRoute(currentRoute);
-            routes.add(currentRoute);
+        List<Route> routes = new ArrayList<>();
+        for (int curr = n; curr > 0; curr = P[curr]) {
+            if (bestRoutes[curr] != null) routes.add(bestRoutes[curr]);
         }
-
+        Collections.reverse(routes);
         return routes;
     }
 
-    private void assignDepotsToRoute(Route route) {
-        List<Integer> customers = route.encodedCustomers;
-        
-        
-        CustomerType firstType = getType(customers.get(0));
-        CustomerType lastType = getType(customers.get(customers.size() - 1));
 
+    private Depot findNearestDepot(int encodedId, DepotType requiredType) {
+        Object c = getCustomerObject(encodedId);
         
-        if (firstType == CustomerType.DELIVERY) {
-            route.startDepot = findNearestDepot(customers.get(0), DepotType.DELIVERY);
-        } 
-        else {
-            route.startDepot = findNearestDepot(customers.get(0), DepotType.PICKUP);
-        }
-
-        if (lastType == CustomerType.DELIVERY) {
-            route.endDepot = findNearestDepot(customers.get(customers.size() - 1), DepotType.DELIVERY);
-        } 
-        else {
-            route.endDepot = findNearestDepot(customers.get(customers.size() - 1), DepotType.PICKUP);
-        }
-    }
-
-
-    private Depot findNearestDepot(int encodedCustomerId, DepotType requiredType) {
-        Object c = getCustomerObject(encodedCustomerId);
-        
-        // tĩnh
         if (c instanceof StaticCustomer) {
-            int clusterId = ((StaticCustomer) c).getClusterId();
-            return depots.get(clusterId); 
+            StaticCustomer sc = (StaticCustomer) c;
+
+            boolean isSameType = (sc.getType() == CustomerType.DELIVERY && requiredType == DepotType.DELIVERY) || (sc.getType() == CustomerType.PICKUP && requiredType == DepotType.PICKUP);
+            
+
+            int targetDepotId = isSameType ? sc.getClusterId() : sc.getClusterId2();
+            return depots.get(targetDepotId);
+            
         } 
-        // động tạo đường mới
         else {
-            double cx = ((DynamicCustomer) c).getX();
-            double cy = ((DynamicCustomer) c).getY();
-
-            Depot nearest = null;
+            DynamicCustomer dc = (DynamicCustomer) c;
+            Depot bestDepot = null;
             double minDistance = Double.MAX_VALUE;
-
+            
             for (Depot d : depots) {
                 if (d.getType() == requiredType) {
-                    double dist = calculateDistance(cx, cy, d.getX(), d.getY());
+                    double dist = calculateDistance(dc.getX(), dc.getY(), d.getX(), d.getY());
                     if (dist < minDistance) {
                         minDistance = dist;
-                        nearest = d;
+                        bestDepot = d;
                     }
                 }
             }
-            return nearest;
+            return bestDepot;
         }
     }
 
@@ -909,6 +878,14 @@ public class ANSGA {
     private double calculateDistance(double x1, double y1, double x2, double y2) {
         return Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
     }
+
+    // private Depot getDepotById(int id) {
+    //     for (Depot d : depots) {
+    //         if (d.getId() == id) return d;
+    //     }
+    //     return null;
+    // }
+
 
 
 }

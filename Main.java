@@ -19,7 +19,7 @@ public class Main {
         String cvsSplitBy = ",";
 
         try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-            
+
             br.readLine(); // Bỏ qua dòng tiêu đề
 
             while ((line = br.readLine()) != null) {
@@ -41,19 +41,19 @@ public class Main {
                 if (dcs >= 1000 || pcs >= 1000) {
                     if (dcs >= 1000) {
                         depots.add(new Depot(id, x, y, DepotType.DELIVERY, twLeftD, twRightD));
-                    } 
+                    }
                     else {
                         depots.add(new Depot(id, x, y, DepotType.PICKUP, twLeftP, twRightP));
                     }
-                } 
+                }
                 else {
                     CustomerType type;
                     double demand;
                     double startTimeWindow;
                     double endTimeWindow;
 
-                    int tmpCluster = -1;
-                    
+                    int tmpCluster = -1;//------------------------------------------------
+
                     if (deliveryDemand > 0) {
                         type = CustomerType.DELIVERY;
                         demand = deliveryDemand;
@@ -62,16 +62,16 @@ public class Main {
 
                         // if (dcs == 1) {
                         //     tmpCluster = 2;
-                        // } 
+                        // }
                         // else if (dcs == 2) {
                         //     tmpCluster = 0;
                         // }
-
-                        Random rand = new Random();
-                        int ra = rand.nextInt(2);
-                        if(ra == 0) tmpCluster = 0;
-                        else if(ra == 1) tmpCluster = 1;
-                    } 
+                            //-----------------------------------------------------------
+//                        Random rand = new Random();
+//                        int ra = rand.nextInt(2);
+//                        if(ra == 0) tmpCluster = 0;
+//                        else if(ra == 1) tmpCluster = 1;
+                    }
                     else {
                         type = CustomerType.PICKUP;
                         demand = pickupDemand;
@@ -80,21 +80,21 @@ public class Main {
 
                         // if (pcs == 1) {
                         //     tmpCluster = 1;
-                        // } 
+                        // }
                         // else if (pcs == 2) {
                         //     tmpCluster = 3;
                         // }
 
-                        Random rand = new Random();
-                        int ra = rand.nextInt(2);
-
-                        if(ra == 0) tmpCluster = 2;
-                        else if(ra == 1) tmpCluster = 3;
+//                        Random rand = new Random();//------------------------------------------
+//                        int ra = rand.nextInt(2);
+//
+//                        if(ra == 0) tmpCluster = 2;
+//                        else if(ra == 1) tmpCluster = 3;
                     }
 
                     if (knownTime == 0) {
                         staticCustomers.add(new StaticCustomer(id, x, y, demand, type, startTimeWindow, endTimeWindow, tmpCluster));
-                    } 
+                    }
                     else {
                         dynamicCustomers.add(new DynamicCustomer(id, x, y, demand, type, startTimeWindow, endTimeWindow, knownTime));
                     }
@@ -125,7 +125,7 @@ public class Main {
         readData();
 
         // ANSGA-II
-        int Run = 2000; // số lần lặp NSGA-II
+        int Run = 100; // số lần lặp NSGA-II
         int numTimeSlot = 10;
 
         // tìm thời gian kết thúc của việc vận chuyển
@@ -136,14 +136,20 @@ public class Main {
             }
         }
 
-        
+        // ở đây
+        //flow: từ tập dữ liệu có sẵn, iều chỉnh lại cluster ID của mọi thứ
 
+        ThreeDAP dap = new ThreeDAP(staticCustomers,depots);
+        dap.reCluster();
+//        for(StaticCustomer st : staticCustomers) System.out.println(st.getClusterId2());
+
+//            note chạy thử với vòng lặp 100 lần trước
         ANSGA algorithm = new ANSGA(Run, numTimeSlot, timeHorizon, staticCustomers, dynamicCustomers, depots);
         List<Individual> Perato = algorithm.runAlgorithm();
 
         for(Individual x : Perato){
         System.out.println(x.toString());
         }
-    
+
     }
 }

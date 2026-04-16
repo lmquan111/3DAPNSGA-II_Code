@@ -9,14 +9,17 @@ public class StaticCustomer {
     private double y;               
     
     private double demand;          // Weight
-    private CustomerType type;      
-    
-    
-    private double startTimeWindow; 
+    private CustomerType type;
+
+
+
+
+    private double startTimeWindow;
     private double endTimeWindow;   
     
     
-    private int clusterId;  // tâm kho của nó        
+    private int clusterId;  // tâm kho cùng loại
+    private int clusterId2; //tâm kho khác loại
 
     // Constructor
     public StaticCustomer(int id, double x, double y, double demand, CustomerType type, 
@@ -31,7 +34,9 @@ public class StaticCustomer {
         this.clusterId = clusterId;
     }
 
-    
+    public int getClusterId2() {
+        return clusterId2;
+    }
     public int getId() { return id; }
     public double getX() { return x; }
     public double getY() { return y; }
@@ -50,7 +55,9 @@ public class StaticCustomer {
     public void setStartTimeWindow(double startTimeWindow) { this.startTimeWindow = startTimeWindow; }
     public void setEndTimeWindow(double endTimeWindow) { this.endTimeWindow = endTimeWindow; }
     public void setClusterId(int clusterId) { this.clusterId = clusterId; }
-
+    public void setClusterId2(int clusterId2) {
+        this.clusterId2 = clusterId2;
+    }
     @Override
     public String toString() {
         return "StaticCustomer{" +
